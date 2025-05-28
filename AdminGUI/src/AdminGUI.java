@@ -3,6 +3,7 @@ import java.util.List;
 import java.util.Map;
 import javax.swing.*;
 
+
 public class AdminGUI {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new ViewFrame());
@@ -67,21 +68,21 @@ class ViewFrame extends JFrame {
                 return;
             }
             buttonPanel.removeAll();
-            int maxRows = 10; // Number of rows before starting a new column (adjust as needed)
-            GridBagConstraints gbc = new GridBagConstraints();
-            gbc.insets = new Insets(10, 10, 10, 10);
-            gbc.fill = GridBagConstraints.NONE;
-            gbc.anchor = GridBagConstraints.NORTHWEST;
+int maxRows = 10; // Number of rows before starting a new column (adjust as needed)
+GridBagConstraints gbc = new GridBagConstraints();
+gbc.insets = new Insets(10, 10, 10, 10);
+gbc.fill = GridBagConstraints.NONE;
+gbc.anchor = GridBagConstraints.NORTHWEST;
 
-            for (int i = 0; i < ids.size(); i++) {
-                String id = ids.get(i);
-                JButton btn = new JButton(id);
-                btn.setPreferredSize(new Dimension(150, 50));
-                btn.addActionListener(e -> showStudentInfo(id));
-                gbc.gridx = i / maxRows; // column
-                gbc.gridy = i % maxRows; // row
-                buttonPanel.add(btn, gbc);
-            }
+for (int i = 0; i < ids.size(); i++) {
+    String id = ids.get(i);
+    JButton btn = new JButton(id);
+    btn.setPreferredSize(new Dimension(150, 50));
+    btn.addActionListener(e -> showStudentInfo(id));
+    gbc.gridx = i / maxRows; // column
+    gbc.gridy = i % maxRows; // row
+    buttonPanel.add(btn, gbc);
+}
             buttonPanel.revalidate();
             buttonPanel.repaint();
         } catch (Exception ex) {
@@ -114,13 +115,40 @@ class StudentInfoFrame extends JFrame {
         backButton.setPreferredSize(new Dimension(100, 35));
         backButton.addActionListener(e -> dispose());
 
-        // Verify Documents button (delegates to VerifyDocs.java)
-        JButton showDocsButton = new JButton("Verify Documents");
-        showDocsButton.setFont(new Font("Arial", Font.PLAIN, 16));
-        showDocsButton.setPreferredSize(new Dimension(180, 35));
-        showDocsButton.addActionListener(e -> {
-            VerifyDocs.showVerifyDocumentsFrame(this, info.getOrDefault("application_id", ""));
-        });
+        // Verify documents button
+        JButton verifyDocsButton = new JButton("Verify Documents");
+        verifyDocsButton.setFont(new Font("Arial", Font.PLAIN, 16));
+        verifyDocsButton.setPreferredSize(new Dimension(180, 35));
+verifyDocsButton.addActionListener(e -> {
+    VerifyDocs.showVerifyDocumentsFrame(this, info.getOrDefault("application_id", ""));
+});
+
+// New Show Documents button
+JButton showFolderButton = new JButton("Show Documents");
+showFolderButton.setFont(new Font("Arial", Font.PLAIN, 16));
+showFolderButton.setPreferredSize(new Dimension(180, 35));
+showFolderButton.addActionListener(e -> {
+    String appId = info.getOrDefault("application_id", "");
+    java.io.File folder = new java.io.File("../backend/uploads/" + appId);
+    if (folder.exists() && folder.isDirectory()) {
+        try {
+            Desktop.getDesktop().open(folder.getCanonicalFile());
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error opening folder:\n" + ex.getMessage());
+        }
+    } else {
+        JOptionPane.showMessageDialog(this, "Document folder not found.");
+    }
+});
+
+        // Payment verification button
+        JButton paymentVerificationButton = new JButton("Payment Verification");
+paymentVerificationButton.setFont(new Font("Arial", Font.PLAIN, 16));
+paymentVerificationButton.setPreferredSize(new Dimension(180, 35));
+paymentVerificationButton.addActionListener(e -> {
+    String appId = info.getOrDefault("application_id", "");
+    Payment.verifyPayment(appId); // Calls Payment.java function
+});
 
         // Delete button
         JButton deleteButton = new JButton("Delete");
@@ -133,24 +161,16 @@ class StudentInfoFrame extends JFrame {
             }
         });
 
-        // Show Documents button (delegates to ShowDocs.java)
-        JButton showFolderButton = new JButton("Show Documents");
-        showFolderButton.setFont(new Font("Arial", Font.PLAIN, 16));
-        showFolderButton.setPreferredSize(new Dimension(180, 35));
-        showFolderButton.addActionListener(e -> {
-            ShowDocs.openDocumentsFolder(this, info.getOrDefault("application_id", ""));
-        });
-
-        // Panel for the two buttons in 50:50 ratio
-        JPanel docsPanel = new JPanel(new GridLayout(1, 2, 10, 0));
-        docsPanel.add(showDocsButton);
-        docsPanel.add(showFolderButton);
-
-        // Top panel for back, docsPanel, and delete buttons
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.add(backButton, BorderLayout.WEST);
-        topPanel.add(deleteButton, BorderLayout.EAST);
-        topPanel.add(docsPanel, BorderLayout.CENTER);
+// Panel for the two buttons in 50:50 ratio
+JPanel docsPanel = new JPanel(new GridLayout(1, 3, 10, 0));
+docsPanel.add(verifyDocsButton);
+docsPanel.add(showFolderButton);
+docsPanel.add(paymentVerificationButton);
+// Top panel for back, docsPanel, and delete buttons
+JPanel topPanel = new JPanel(new BorderLayout());
+topPanel.add(backButton, BorderLayout.WEST);
+topPanel.add(deleteButton, BorderLayout.EAST);
+topPanel.add(docsPanel, BorderLayout.CENTER);
 
         // Get column order from DB
         java.util.List<String> columnOrder = new java.util.ArrayList<>();
@@ -180,41 +200,47 @@ class StudentInfoFrame extends JFrame {
             }
         }
 
-        // Panel for Personal Info
-        JPanel personalPanel = new JPanel();
-        personalPanel.setLayout(new BoxLayout(personalPanel, BoxLayout.Y_AXIS));
-        JLabel personalHeader = new JLabel("Personal Info");
-        personalHeader.setFont(personalHeader.getFont().deriveFont(Font.BOLD));
-        personalPanel.add(personalHeader);
-        personalPanel.add(Box.createVerticalStrut(8));
-        for (String col : personalFields) {
-            JPanel row = new JPanel(new BorderLayout());
-            JLabel label = new JLabel("<html><b>" + col.replace("_", " ") + ":</b></html>");
-            String val = info.getOrDefault(col, "");
-            if (val == null || "null".equals(val)) val = "";
-            JLabel value = new JLabel(" " + val);
-            row.add(label, BorderLayout.WEST);
-            row.add(value, BorderLayout.CENTER);
-            personalPanel.add(row);
-        }
+// Panel for Personal Info
+JPanel personalPanel = new JPanel();
+personalPanel.setLayout(new BoxLayout(personalPanel, BoxLayout.Y_AXIS));
+JLabel personalHeader = new JLabel("Personal Info");
+personalHeader.setFont(personalHeader.getFont().deriveFont(Font.BOLD));
+personalPanel.add(personalHeader);
+personalPanel.add(Box.createVerticalStrut(8));
+for (String col : personalFields) {
+    JPanel row = new JPanel(new BorderLayout());
+    JLabel label = new JLabel("<html><b>" + col.replace("_", " ") + ":</b></html>");
+    String val = info.getOrDefault(col, "");
+    if (val == null || "null".equals(val)) val = "";
+    JTextField valueField = new JTextField(val);
+    valueField.setEditable(false);
+    valueField.setBorder(null);
+    valueField.setBackground(personalPanel.getBackground());
+    row.add(label, BorderLayout.WEST);
+    row.add(valueField, BorderLayout.CENTER);
+    personalPanel.add(row);
+}
 
-        // Panel for Academic Info
-        JPanel academicPanel = new JPanel();
-        academicPanel.setLayout(new BoxLayout(academicPanel, BoxLayout.Y_AXIS));
-        JLabel academicHeader = new JLabel("Academic Info");
-        academicHeader.setFont(academicHeader.getFont().deriveFont(Font.BOLD));
-        academicPanel.add(academicHeader);
-        academicPanel.add(Box.createVerticalStrut(8));
-        for (String col : academicFields) {
-            JPanel row = new JPanel(new BorderLayout());
-            JLabel label = new JLabel("<html><b>" + col.replace("_", " ") + ":</b></html>");
-            String val = info.getOrDefault(col, "");
-            if (val == null || "null".equals(val)) val = "";
-            JLabel value = new JLabel(" " + val);
-            row.add(label, BorderLayout.WEST);
-            row.add(value, BorderLayout.CENTER);
-            academicPanel.add(row);
-        }
+// Panel for Academic Info
+JPanel academicPanel = new JPanel();
+academicPanel.setLayout(new BoxLayout(academicPanel, BoxLayout.Y_AXIS));
+JLabel academicHeader = new JLabel("Academic Info");
+academicHeader.setFont(academicHeader.getFont().deriveFont(Font.BOLD));
+academicPanel.add(academicHeader);
+academicPanel.add(Box.createVerticalStrut(8));
+for (String col : academicFields) {
+    JPanel row = new JPanel(new BorderLayout());
+    JLabel label = new JLabel("<html><b>" + col.replace("_", " ") + ":</b></html>");
+    String val = info.getOrDefault(col, "");
+    if (val == null || "null".equals(val)) val = "";
+    JTextField valueField = new JTextField(val);
+    valueField.setEditable(false);
+    valueField.setBorder(null);
+    valueField.setBackground(academicPanel.getBackground());
+    row.add(label, BorderLayout.WEST);
+    row.add(valueField, BorderLayout.CENTER);
+    academicPanel.add(row);
+}
 
         // Main panel with two columns
         JPanel mainPanel = new JPanel(new GridLayout(1, 2, 20, 0));
